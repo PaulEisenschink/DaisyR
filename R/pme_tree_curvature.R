@@ -1,4 +1,12 @@
-pme_tree_curvature <- function(stems, chm = chm, crs = 32633){
+#' Stem Curvature Estimation
+#' 
+#' Estimates the stem curvature and tree height from the cleaned and segmented stems from pme_clean_stems
+#' 
+#' @param stems Cleaned stem product from pme_clean_stems
+#' @param chm Canopy height model which overlaps all stems
+#' @param crs EPSG-code of CRS in which the data is present
+#' @export
+pme_tree_curvature <- function(stems, chm = chm, crs){
   require(dplyr)
   
   #create stems sdf form stems

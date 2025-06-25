@@ -1,6 +1,13 @@
-#############################################################################################################
-#INTENSITY FIX
-pme_intfix <- function(input_path, drone_path, input_epsg){
+#' GS-100C+ Intensity with flightlines
+#' 
+#' Corrects the flight lines effect from raw, stitched GS-100C+ LiDAR data
+#' 
+#' @param input_path Path to LAS file
+#' @param drone_path Path to GNSS flight file 
+#' @param crs EPSG code of the LiDAR data
+#' @return NULL Writes the corrected LAS File into the input directory 
+#' @export
+pme_intfix <- function(input_path, drone_path, crs){
   file_no_ext <- gsub('.{4}$', '', input_path)
   print("reading input file...")
   las_cat = read.las(input_path)
@@ -35,7 +42,6 @@ pme_intfix <- function(input_path, drone_path, input_epsg){
   
   las_fix@data$gpstime[length(las_fix@data$gpstime)]
   
-  #richtige Flugbahn auswählen
   sensor_1 = drone_lonlat[drone_lonlat$V2 >= las_fix@data$gpstime[1],]
   
   sensor_1 = sensor_1[,-1]
@@ -51,7 +57,7 @@ pme_intfix <- function(input_path, drone_path, input_epsg){
   XYZ = sensor_1[,c(2,3,4)]
   sensor_2 = SpatialPointsDataFrame(data = sensor_1, coords = XYZ)
   proj4string(sensor_2) <- CRS("+proj=longlat +datum=WGS84")
-  sensor_2 <- spTransform(sensor_2, crs(paste0("EPSG:", input_epsg)))
+  sensor_2 <- spTransform(sensor_2, crs(paste0("EPSG:", crs)))
   
   print("normalizing intensities...")
   #sensor = track_sensor(las1, Roussel2020(interval = 6, pmin = 1))

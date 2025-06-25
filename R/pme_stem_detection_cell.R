@@ -1,50 +1,15 @@
-###################################################
-#pme stem detection 
-#returns las of stems and supplymentary dataframe
-
-pme_stem_detection <- function(las, minPts = 100){
-  require(lidR)
-  require(dbscan)
-  require(stats)
-  stems_df <- data.frame()
-  las_cluster <- hdbscan(cbind(las$X, las$Y), minPts = minPts)
-  las <- add_attribute(las, las_cluster$cluster, 'cluster')
-  las_stems <- filter_poi(las, Z < max(las$Z) - 0.5 & Z > max(las$Z) - 0.5)
-  for(clus in unique(las$cluster)){
-    clus_single <- filter_poi(las, cluster == clus)
-    pca_clus <- prcomp(cbind(clus_single$X, clus_single$Y, clus_single$Z))
-    pca1 <- abs(pca_clus$rotation[1,1])
-    pca2 <- abs(pca_clus$rotation[2,1])
-    pca3 <- abs(pca_clus$rotation[3,1])
-    fd_clus <- fd(clus_single$X, clus_single$Y, clus_single$Z)
-    z_data_hist <- hist(clus_single$Z, plot = FALSE)
-    z_data_sd <- sd(z_data_hist$density)
-    z_data_low <- z_data_hist$counts < 5
-    z_data_low_sum <- length(z_data_low[z_data_low == TRUE])
-    if (pca3 > 0.9 & pca1 + pca2 < 0.3 & fd_clus < 1.5 & z_data_low_sum < 5 & z_data_sd < 0.6){
-      print(clus)
-      x_cent <- mean(clus_single$X)
-      y_cent <- mean(clus_single$Y)
-      las_stems <- rbind(las_stems, clus_single)
-      stems_df <- rbind(stems_df, c(clus, x_cent, y_cent, z_data_sd, z_data_low_sum))
-    } else {
-      print(clus)
-    }
-  }
-  colnames(stems_df) <- c('clus_ID', 'center_x', 'center_y', 'z_data_sd', 'z_data_low_quantile')
-  return(c(stems_df, las_stems))
-}
-
-#returns both the las and the dataframe. Separate with:
-#stems <- pme_stem_detection(las, 100)
-#stems_las <- stems[[6]]
-#stems_df <- data.frame(stems[1:5])
-
-
-##################################################################################
-#as above but with moving cell
-
-
+#' Stem detection algorithm based on DBSCAN & HDBSCAN
+#' 
+#' Segments stems by cells in height-normalised LiDAR data, based on HDBSCAN, then DBSCAN
+#' 
+#' @param las Pointcloud data to be segmented
+#' @param minPts Minimum points for the HDBSCAN on initial clustering to be considered as a stem. Higher values disregards more less dense clusters
+#' @param cellsize Cell size of initial clustering. Higher cell sized will require considerably more RAM! CAUTION!!!
+#' @param hmin Minimum height of point cloud. Points below are disregarded in segmentation
+#' @param hmax Maximum height of point cloud. Points above are disregarded in segmentation
+#' @param minPts_post Minimum points for the DBSCAN on secondary clustering to be considered as a stem. Higher values disregards more less dense clusters
+#' @param eps Epsilon of HDBSCAN/DBSCAN. Maximum distance between two points to be considered part of the stem. Smaller values segment stricter, but might remove some stem points
+#' @export
 pme_stem_detection_cell <- function(las, minPts = 100, cellsize = 5, hmax = 10, hmin = 0.5, minPts_post = 150, eps = 0.12){
   require(lidR)
   require(dbscan)

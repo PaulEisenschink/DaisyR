@@ -1,5 +1,11 @@
-
-
+#' Understory Segmentation
+#' 
+#' Segments the pointcloud from understory segmentation based on pme_stem_detection_cell or pme_stem_detection_cell_dbscan
+#' 
+#' @param stems Cleaned stem product from pme_clean_stems
+#' @param chm Canopy height model which overlaps all stems
+#' @param crs EPSG-code of CRS in which the data is present
+#' @export
 pme_understory_detection <- function(las, res = 25, bp_pre = 20, min_uth = 5){
   require(lidR)
   require(terra)
