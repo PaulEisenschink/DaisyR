@@ -1,6 +1,13 @@
-#pipeline: pme_stem_segmentation_dbscan > pme_clean_stems > pme_dbh_estimation
-
-
+#' DBH Estimation
+#' 
+#' Estimates the DBH vales based on segmented and cleaned stems.
+#' 
+#' @param stems_clean Cleaned stems from pme_clean_stems
+#' @param z_mid Height of middle of DBH extraction heigh
+#' @param q Quantile of distances between all flattened stem points
+#' @param crs EPSG-code of CRS in which the data is present
+#' @return sf-dataframe. Spatial dataframe with the estimated DBHs
+#' @export
 pme_dbh_estimation <- function(stems_clean, z_mid, q, crs){
   stems_las <- stems_clean[[6]]
   stems_df <- data.frame(stems_clean[1:5])
