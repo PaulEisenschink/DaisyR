@@ -1,52 +1,28 @@
-#' Stem Curvature Estimation
+#' Tree Curvature Plot
 #' 
-#' Estimates the stem curvature and tree height from the cleaned and segmented stems from pme_clean_stems
+#' Creates a visual plot of a single stems curvature estimation
 #' 
-#' @param stems Cleaned stem product from pme_clean_stems
-#' @param chm Canopy height model which overlaps all stems
-#' @param crs EPSG-code of CRS in which the data is present
+#' @param stems_clean Cleaned stems from pme_clean_stems
+#' @param stemID Stem ID of the stem to plot
 #' @export
-pme_tree_curvature <- function(stems, chm = chm, crs){
+pme_tree_curvature_plot_check <- function(stems_clean, stemID){
   require(dplyr)
+  require(ggplot2)
+  library(patchwork)
+  #extract las from stems_clean
+  las_stems_rel <- filter_poi(stems_clean[[6]], stemID == stemID)
   
-  #create stems sdf form stems
-  stems_df <- data.frame(stems[1:5])
-  stems_sdf_clean <- st_as_sf(stems_df)
-  st_crs(stems_sdf_clean) <- crs
-  
-  #extract las from stems
-  las_stems_rel <- stems[[6]]
-  
-  
-  print("Calculating Tree Height...")
-  #get height of tree
-  i <- 1
-  for (stemID in stems_sdf_clean$stemID){
-    point <- stems_sdf_clean[i, ]
-    circle <- st_buffer(point, dist = 1.5)
-    ch <- max(terra::extract(chm, circle), na.rm = TRUE)
-    stems_sdf_clean$ch[i] <- ch
-    i <- i + 1
-  }
-  
-  # get percentage of tree height
-  stems_sdf_clean$h_dfl <- 0.6 * stems_sdf_clean$ch
-
   
   #calculate tree curvature
   value_df <- data.frame()
   i <- 1
-  print("Calculating Stem Curvature...")
+  #print("Calculating Stem Curvature...")
   
-  for (ID_rel in stems_sdf_clean$stemID){
-    #print(ID_rel)
-    
-    #get empty nn from above
-    nn <- stems_sdf_clean$nn[stems_sdf_clean$stemID == ID_rel]
-    h <- stems_sdf_clean$h_dfl[stems_sdf_clean$stemID == ID_rel]
+  for (ID_rel in stemID){
+    #print(ID_rel
     
     #filter stem single, transform data and normalise
-    stem_single <- filter_poi(las_stems_rel, stemID == ID_rel & Z > 0.5 & Z < h)
+    stem_single <- filter_poi(las_stems_rel, stemID == stemID & Z > 0.5)
     stem_df <- data.frame(cbind(stem_single$X, stem_single$Y, stem_single$Z))
     colnames(stem_df) <- c('X', 'Y', 'Z')
     stem_df$X_ref <- stem_df$X - min(stem_df$X)
@@ -68,7 +44,7 @@ pme_tree_curvature <- function(stems, chm = chm, crs){
         mean_Yr = median(Y_ref, na.rm = TRUE),
         count = n()
       )
-
+    
     
     #######adapted version 2025
     #create spline fit for both dims
@@ -113,25 +89,37 @@ pme_tree_curvature <- function(stems, chm = chm, crs){
     colnames(df_fits) <- c('Z_bin', 'mean_Xr', 'meanYr', 'count', 'lin_x', 'lin_y')
     
     df_fits <- merge(df_fits, df_spline, by = 'Z_bin')
-
     
+    
+    
+    df_fits <- df_fits[order(df_fits$Z_bin), ]
     #x DFL
     DFL_X <- sum(abs(df_fits$lin_x - df_fits$X_spl))/length(df_fits$lin_x)
     DFL_Y <- sum(abs(df_fits$lin_y - df_fits$Y_spl))/length(df_fits$lin_y)
     
+    plot_title <- paste("DFL_X:", round(DFL_X, 4), "| DFL_Y:", round(DFL_Y, 4), round((DFL_Y + DFL_X), 4))
     
-    value_df <- rbind(value_df, c(ID_rel, DFL_X, DFL_Y, h / 0.6, st_coordinates(stems_sdf_clean[i,])[1], st_coordinates(stems_sdf_clean[i,])[2]))
+    # Build the plot
+    p_xz <- ggplot() +
+      geom_point(data = stem_df, aes(x = X_ref, y = Z), color = "black", alpha = 0.5) +
+      geom_line(data = df_fits, aes(x = lin_x, y = Z_bin), color = "blue", size = 1, linetype = "dashed") +
+      geom_point(data = df_fits, aes(x = X_spl, y = Z_bin), color = "red", size = 3) +
+      labs(title = "X-Z Plot", x = "X", y = "Z") + coord_fixed() + 
+      theme_minimal()
+    
+    p_yz <- ggplot() +
+      geom_point(data = stem_df, aes(x = Y_ref, y = Z), color = "black", alpha = 0.5) +
+      geom_line(data = df_fits, aes(x = lin_y, y = Z_bin), color = "blue", size = 1, linetype = "dashed") +
+      geom_point(data = df_fits, aes(x = Y_spl, y = Z_bin), color = "red", size = 3) +
+      labs(title = "Y-Z Plot", x = "Y", y = "Z") + coord_fixed() + 
+      theme_minimal()
+    
+    
+    combined_plot <- p_xz + p_yz + plot_layout(ncol = 2)  +
+      plot_annotation(title = plot_title)
+    
     
     i <-  i + 1
   }
-  
-  colnames(value_df) <- c('stemID', 'DFL_X', 'DFL_Y', 'h', 'X', 'Y')
-  value_df$DFL_sum <- value_df$DFL_X + value_df$DFL_Y
-  
-  #reorder cols
-  #todo
-  
-  value_sdf <- st_as_sf(value_df, coords = c('X', 'Y'), crs = 32633)
-  
-  return(value_sdf)
+  return(combined_plot)
 }

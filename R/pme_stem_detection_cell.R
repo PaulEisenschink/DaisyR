@@ -183,6 +183,3 @@ pme_stem_detection_cell_dbscan <- function(las, minPts = 115, cellsize = 25, hma
     return(c(stems_df, las_stems))
   }
 }
-
-
-

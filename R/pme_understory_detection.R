@@ -37,4 +37,3 @@ pme_understory_detection <- function(las, res = 25, bp_pre = 20, min_uth = 5){
   }
   return(bottom_post)
 }
-
